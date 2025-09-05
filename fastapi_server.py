@@ -76,6 +76,49 @@ def _maybe_auto_install_models(cfg: dict, allow_network: bool = True) -> dict:
         src_caption = weights_dir / 'icon_caption'
         if src_caption.exists() and not florence_dir.exists():
             src_caption.rename(florence_dir)
+
+        # Ensure Florence2 processor/tokenizer files and local custom code exist
+        # so we can load with local_files_only=True and trust_remote_code=True
+        try:
+            # Download only the non-weight files from the base Florence2 repo
+            # and copy them into our fine-tuned folder if missing.
+            base_tmp = weights_dir / '.cache' / 'Florence-2-base-ft'
+            base_tmp.mkdir(parents=True, exist_ok=True)
+            base_repo = 'microsoft/Florence-2-base-ft'
+            needed_patterns = [
+                # processor/tokenizer configs
+                'preprocessor_config.json',
+                'processor_config.json',
+                'tokenizer_config.json',
+                'tokenizer.json',
+                'special_tokens_map.json',
+                'added_tokens.json',
+                'merges.txt',
+                'vocab.json',
+                'spiece.model',
+                # local custom code for trust_remote_code
+                'configuration_florence2.py',
+                'modeling_florence2.py',
+                'processing_florence2.py',
+            ]
+            snapshot_download(
+                repo_id=base_repo,
+                allow_patterns=needed_patterns,
+                local_dir=str(base_tmp),
+                local_dir_use_symlinks=False,
+            )
+            # Copy missing files over (do not overwrite weights/config already present)
+            for pat in needed_patterns:
+                src = base_tmp / pat
+                if src.exists():
+                    dst = florence_dir / src.name
+                    if not dst.exists():
+                        try:
+                            copy2(src, dst)
+                        except Exception:
+                            pass
+        except Exception as e3:
+            print('[OmniParser] Warning: could not fetch Florence2 processor/code files:', e3)
     except Exception as e:
         print('[OmniParser] Auto-install failed via snapshot_download:', e)
         # Best-effort fallback: try downloading exact files
@@ -103,6 +146,36 @@ def _maybe_auto_install_models(cfg: dict, allow_network: bool = True) -> dict:
                     print(f'[OmniParser] Failed to fetch icon_caption/{f}:', ee)
             if tmp_caption.exists() and not florence_dir.exists():
                 tmp_caption.rename(florence_dir)
+
+            # Also try to fetch Florence2 base processor/tokenizer and code files one-by-one
+            try:
+                base_repo = 'microsoft/Florence-2-base-ft'
+                needed_files = [
+                    'preprocessor_config.json',
+                    'processor_config.json',
+                    'tokenizer_config.json',
+                    'tokenizer.json',
+                    'special_tokens_map.json',
+                    'added_tokens.json',
+                    'merges.txt',
+                    'vocab.json',
+                    'spiece.model',
+                    'configuration_florence2.py',
+                    'modeling_florence2.py',
+                    'processing_florence2.py',
+                ]
+                florence_dir.mkdir(parents=True, exist_ok=True)
+                for fname in needed_files:
+                    try:
+                        local_fp = hf_hub_download(base_repo, filename=fname)
+                        dest = florence_dir / fname
+                        if not dest.exists():
+                            copy2(local_fp, dest)
+                    except Exception as ee:
+                        # Some tokenizers use either merges/vocab or sentencepiece; ignore if absent
+                        print(f'[OmniParser] Optional Florence2 file not fetched ({fname}):', ee)
+            except Exception as e4:
+                print('[OmniParser] Warning: could not fetch Florence2 processor/code files (fallback):', e4)
         except Exception as e2:
             print('[OmniParser] Auto-install fallback also failed:', e2)
 

@@ -40,6 +40,9 @@ Ensure you have the V2 weights downloaded in weights folder (ensure caption weig
    mv weights/icon_caption weights/icon_caption_florence
 ```
 
+Note
+- When started without local weights, the FastAPI server auto-installs the YOLO detector, the Florence2 fine-tuned weights, and also the Florence2 processor/tokenizer files and local custom code (configuration/modeling/processing) required by `trust_remote_code`. This allows fully local loading without additional network access at runtime.
+
 <!-- ## [deprecated]
 Then download the model ckpts files in: https://huggingface.co/microsoft/OmniParser, and put them under weights/, default folder structure is: weights/icon_detect, weights/icon_caption_florence, weights/icon_caption_blip2. 
 

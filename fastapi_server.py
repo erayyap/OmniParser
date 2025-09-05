@@ -117,6 +117,27 @@ def _maybe_auto_install_models(cfg: dict, allow_network: bool = True) -> dict:
                             copy2(src, dst)
                         except Exception:
                             pass
+            # Patch config.json auto_map entries to reference local modules (offline safe)
+            try:
+                import json as _json
+                cfg_fp = florence_dir / 'config.json'
+                if cfg_fp.exists():
+                    with open(cfg_fp, 'r', encoding='utf-8') as f:
+                        _cfg_json = _json.load(f)
+                    auto_map = _cfg_json.get('auto_map') or {}
+                    changed = False
+                    for k, v in list(auto_map.items()):
+                        if isinstance(v, str) and '--' in v:
+                            auto_map[k] = v.split('--', 1)[1]
+                            changed = True
+                    if changed:
+                        _cfg_json['auto_map'] = auto_map
+                        _cfg_json['_name_or_path'] = str(florence_dir)
+                        with open(cfg_fp, 'w', encoding='utf-8') as f:
+                            _json.dump(_cfg_json, f, ensure_ascii=False, indent=2)
+                        print('[OmniParser] Patched Florence2 config.json auto_map for offline local loading.')
+            except Exception as e_patch:
+                print('[OmniParser] Warning: could not patch Florence2 config.json auto_map:', e_patch)
         except Exception as e3:
             print('[OmniParser] Warning: could not fetch Florence2 processor/code files:', e3)
     except Exception as e:
@@ -174,6 +195,27 @@ def _maybe_auto_install_models(cfg: dict, allow_network: bool = True) -> dict:
                     except Exception as ee:
                         # Some tokenizers use either merges/vocab or sentencepiece; ignore if absent
                         print(f'[OmniParser] Optional Florence2 file not fetched ({fname}):', ee)
+                # Patch config.json auto_map entries to reference local modules (offline safe)
+                try:
+                    import json as _json
+                    cfg_fp = florence_dir / 'config.json'
+                    if cfg_fp.exists():
+                        with open(cfg_fp, 'r', encoding='utf-8') as f:
+                            _cfg_json = _json.load(f)
+                        auto_map = _cfg_json.get('auto_map') or {}
+                        changed = False
+                        for k, v in list(auto_map.items()):
+                            if isinstance(v, str) and '--' in v:
+                                auto_map[k] = v.split('--', 1)[1]
+                                changed = True
+                        if changed:
+                            _cfg_json['auto_map'] = auto_map
+                            _cfg_json['_name_or_path'] = str(florence_dir)
+                            with open(cfg_fp, 'w', encoding='utf-8') as f:
+                                _json.dump(_cfg_json, f, ensure_ascii=False, indent=2)
+                            print('[OmniParser] Patched Florence2 config.json auto_map for offline local loading.')
+                except Exception as e_patch2:
+                    print('[OmniParser] Warning: could not patch Florence2 config.json auto_map (fallback):', e_patch2)
             except Exception as e4:
                 print('[OmniParser] Warning: could not fetch Florence2 processor/code files (fallback):', e4)
         except Exception as e2:
@@ -224,6 +266,27 @@ def _validate_local_models(cfg: dict) -> dict:
             f"[OmniParser] Missing caption model directory. Provide --caption_model_path or allow auto-install (expected: weights/icon_caption_florence). Got: {cap_dir!r}"
         )
     print("[OmniParser] Caption model directory at:", cap_dir)
+    # Ensure config.json auto_map references local modules (offline safe)
+    try:
+        import json as _json
+        cfg_fp = Path(cap_dir) / 'config.json'
+        if cfg_fp.exists():
+            with open(cfg_fp, 'r', encoding='utf-8') as f:
+                _cfg_json = _json.load(f)
+            auto_map = _cfg_json.get('auto_map') or {}
+            changed = False
+            for k, v in list(auto_map.items()):
+                if isinstance(v, str) and '--' in v:
+                    auto_map[k] = v.split('--', 1)[1]
+                    changed = True
+            if changed:
+                _cfg_json['auto_map'] = auto_map
+                _cfg_json['_name_or_path'] = str(cap_dir)
+                with open(cfg_fp, 'w', encoding='utf-8') as f:
+                    _json.dump(_cfg_json, f, ensure_ascii=False, indent=2)
+                print('[OmniParser] Patched Florence2 config.json auto_map for offline local loading.')
+    except Exception as e_patch3:
+        print('[OmniParser] Warning: could not patch Florence2 config.json auto_map during validation:', e_patch3)
     return cfg
 
 
